@@ -14,7 +14,7 @@ test_df$Minute <- as.numeric(format(test_df$Time, format = "%M"))
 test_df$Time <- NULL
 
 # solution1: convert to categorical data
-# divide month according to the tempature, daylight and snowfall of NYC
+# divide months according to the tempature, daylight and snowfall of NYC
 # p1:1,2,3,12 p2:4,5,10,11 p3:6,7,8,9 (switch 5 and 9)
 p1 <- c(1,2,3,12)
 p2 <- c(4,5,10,11)
