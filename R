@@ -1,0 +1,83 @@
+NYPD <- read.csv("~/Downloads/NYPD_Motor_Vehicle_Collisions.csv", stringsAsFactors=FALSE)
+# study time and data only
+df <- NYPD[c(1,2,13:18)]
+# test a small amount of data
+# split the date and time column
+test_df <- df
+test_df$DATE <- strptime(as.character(test_df$DATE), "%m/%d/%Y")
+test_df$Year <- as.numeric(format(test_df$DATE, format = "%Y"))
+test_df$Month <- as.numeric(format(test_df$DATE, format = "%m"))
+test_df$Day <- as.numeric(format(test_df$DATE, format = "%d"))
+test_df$Time <- strptime(as.character(test_df$TIME), "%H:%M") 
+test_df$Hour <- as.numeric(format(test_df$Time, format = "%H"))
+test_df$Minute <- as.numeric(format(test_df$Time, format = "%M"))
+test_df$Time <- NULL
+
+# solution1: convert to categorical data
+# divide month according to the tempature, daylight and snowfall of NYC
+# p1:1,2,3,12 p2:4,5,10,11 p3:6,7,8,9 (switch 5 and 9)
+p1 <- c(1,2,3,12)
+p2 <- c(4,5,10,11)
+p3 <- c(6,7,8,9)
+test_df$Part[test_df$Month %in% p1] <- 1
+test_df$Part[test_df$Month %in% p2] <- 2
+test_df$Part[test_df$Month %in% p3] <- 3
+# create different frames
+splitlist <- split(test_df, test_df$Part)
+P1 <- splitlist[[1]]
+P2 <- splitlist[[2]]
+P3 <- splitlist[[3]]
+# sum by hour
+require(plyr)
+P1_df <- P1[c(3:8,12)]
+P1_df <- ddply(P1_df, "Hour", numcolwise(sum))
+P2_df <- P2[c(3:8,12)]
+P2_df <- ddply(P2_df, "Hour", numcolwise(sum))
+P3_df <- P3[c(3:8,12)]
+P3_df <- ddply(P3_df, "Hour", numcolwise(sum))
+# plot
+require(lattice)
+require(reshape2)
+mm3 <- melt(subset(P3_df,select=c(
+  Hour,NUMBER.OF.PEDESTRIANS.INJURED,NUMBER.OF.PEDESTRIANS.KILLED,NUMBER.OF.CYCLIST.INJURED,NUMBER.OF.CYCLIST.KILLED,
+  NUMBER.OF.MOTORIST.INJURED,NUMBER.OF.MOTORIST.KILLED)),id.var="Hour")
+plot3 <- xyplot(value~Hour|variable,data=mm3,type="l",col="blue",
+                scales=list(y=list(relation="free")),
+                layout=c(1,6))
+
+mm2 <- melt(subset(P2_df,select=c(
+  Hour,NUMBER.OF.PEDESTRIANS.INJURED,NUMBER.OF.PEDESTRIANS.KILLED,NUMBER.OF.CYCLIST.INJURED,NUMBER.OF.CYCLIST.KILLED,
+  NUMBER.OF.MOTORIST.INJURED,NUMBER.OF.MOTORIST.KILLED)),id.var="Hour")
+plot2 <- xyplot(value~Hour|variable,data=mm2,type="l",col="red",
+                scales=list(y=list(relation="free")),
+                layout=c(1,6))
+
+mm1 <- melt(subset(P1_df,select=c(
+  Hour,NUMBER.OF.PEDESTRIANS.INJURED,NUMBER.OF.PEDESTRIANS.KILLED,NUMBER.OF.CYCLIST.INJURED,NUMBER.OF.CYCLIST.KILLED,
+  NUMBER.OF.MOTORIST.INJURED,NUMBER.OF.MOTORIST.KILLED)),id.var="Hour")
+plot1 <- xyplot(value~Hour|variable,data=mm1,type="l",col="green",
+                scales=list(y=list(relation="free")),
+                layout=c(1,6))
+require(latticeExtra)
+plot3+plot2+plot1
+
+
+# solution2: regular ts
+# combine data and hour
+test_df$aggDate <- as.POSIXct(paste(test_df$DATE, test_df$Hour), format="%Y-%m-%d %H")
+# sum rows by aggDate - sum by hours
+require(plyr)
+aggDate_test_df <- test_df[c(3:8,14)]
+aggDate_test_df <- ddply(aggDate_test_df, "aggDate", numcolwise(sum))
+# insert missing time and date
+ts_fill <- seq.POSIXt(as.POSIXct("startdate 0:00:00"), as.POSIXct("enddate 23:00:00"), by="hour")
+df_fill <- data.frame(aggDate=ts_fill)
+aggDate_full <- full_join(df_fill,aggDate_test_df)
+aggDate_full[is.na(aggDate_full)] <- 0
+# convert to ts
+require(zoo)
+require(xts)
+ts_aggDate <- xts(aggDate_full[6], order.by = ts_fill)
+
+# heatmap
+
