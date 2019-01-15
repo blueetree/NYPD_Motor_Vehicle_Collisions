@@ -60,7 +60,7 @@ plot1 <- xyplot(value~Hour|variable,data=mm1,type="l",col="green",
                 layout=c(1,6))
 require(latticeExtra)
 plot3+plot2+plot1
-
+# bug: make y axis longer
 
 # solution2: regular ts
 # combine data and hour
